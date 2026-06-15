@@ -30,7 +30,7 @@ jobs:
           node-version: 22
           cache: 'pnpm'
 
-      - uses: pnpm/action-setup@6
+      - uses: pnpm/action-setup@v6
 
       - run: pnpm ci
 
