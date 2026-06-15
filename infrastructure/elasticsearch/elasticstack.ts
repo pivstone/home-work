@@ -4,7 +4,7 @@ import * as kibana from '@pulumi/crds/kibana/v1';
 import { Beat } from '@pulumi/crds/beat/v1beta1';
 import * as pulumi from '@pulumi/pulumi';
 
-export class ELK extends pulumi.ComponentResource {
+export class ElasticStack extends pulumi.ComponentResource {
   constructor(name: string, opts?: pulumi.ComponentResourceOptions) {
     super('elk-instance', name, opts);
 

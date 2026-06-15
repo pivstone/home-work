@@ -4,8 +4,7 @@ import * as pulumi from '@pulumi/pulumi';
 export const releaseName = 'eck-operator';
 
 export class EckOperator extends pulumi.ComponentResource {
-  public readonly ns: pulumi.Output<string>;
-  public readonly chart: pulumi.Resource;
+  public readonly ready: pulumi.Resource;
 
   constructor(name: string, opts?: pulumi.ComponentResourceOptions) {
     super('eck-operator', name, opts);
@@ -14,7 +13,7 @@ export class EckOperator extends pulumi.ComponentResource {
       metadata: { name: 'elastic-system' },
     });
 
-    this.chart = new k8s.helm.v4.Chart(
+    this.ready = new k8s.helm.v4.Chart(
       releaseName,
       {
         repositoryOpts: { repo: 'https://helm.elastic.co' },
@@ -25,7 +24,6 @@ export class EckOperator extends pulumi.ComponentResource {
       { dependsOn: ns },
     );
 
-    this.ns = ns.metadata.name;
-    this.registerOutputs({ ns: this.ns, chart: this.chart });
+    this.registerOutputs({ ready: this.ready });
   }
 }
