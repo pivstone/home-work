@@ -80,83 +80,87 @@ export class ElasticStack extends pulumi.ComponentResource {
           ],
         },
       },
-      { dependsOn: kb },
+      pulumi.mergeOptions(childOpts, { dependsOn: kb }),
     );
 
-    new Beat(name, {
-      spec: {
-        type: 'filebeat',
-        version: '9.4.2',
-        elasticsearchRef: { name: es.metadata.name },
-        config: {
-          'filebeat.inputs': [
-            {
-              type: 'filestream',
-              id: 'container-logs-id',
-              'prospector.scanner.symlinks': true,
-              parsers: [
-                {
-                  container: {
-                    stream: 'stdout',
-                    format: 'docker',
+    new Beat(
+      name,
+      {
+        spec: {
+          type: 'filebeat',
+          version: '9.4.2',
+          elasticsearchRef: { name: es.metadata.name },
+          config: {
+            'filebeat.inputs': [
+              {
+                type: 'filestream',
+                id: 'container-logs-id',
+                'prospector.scanner.symlinks': true,
+                parsers: [
+                  {
+                    container: {
+                      stream: 'stdout',
+                      format: 'docker',
+                    },
                   },
-                },
-              ],
-              paths: ['/var/log/containers/*.log'],
-            },
-          ],
-        },
-        daemonSet: {
-          podTemplate: {
-            spec: {
-              dnsPolicy: 'ClusterFirstWithHostNet',
-              hostNetwork: true,
-              securityContext: {
-                runAsUser: 0,
+                ],
+                paths: ['/var/log/containers/*.log'],
               },
-              volumes: [
-                {
-                  name: 'varlogcontainers',
-                  hostPath: {
-                    path: '/var/log/containers',
-                  },
+            ],
+          },
+          daemonSet: {
+            podTemplate: {
+              spec: {
+                dnsPolicy: 'ClusterFirstWithHostNet',
+                hostNetwork: true,
+                securityContext: {
+                  runAsUser: 0,
                 },
-                {
-                  name: 'varlogpods',
-                  hostPath: {
-                    path: '/var/log/pods',
-                  },
-                },
-                {
-                  name: 'varlibdockercontainers',
-                  hostPath: {
-                    path: '/var/lib/docker/containers',
-                  },
-                },
-              ],
-              containers: [
-                {
-                  name: 'filebeat',
-                  volumeMounts: [
-                    {
-                      name: 'varlogcontainers',
-                      mountPath: '/var/log/containers',
+                volumes: [
+                  {
+                    name: 'varlogcontainers',
+                    hostPath: {
+                      path: '/var/log/containers',
                     },
-                    {
-                      name: 'varlogpods',
-                      mountPath: '/var/log/pods',
+                  },
+                  {
+                    name: 'varlogpods',
+                    hostPath: {
+                      path: '/var/log/pods',
                     },
-                    {
-                      name: 'varlibdockercontainers',
-                      mountPath: '/var/lib/docker/containers',
+                  },
+                  {
+                    name: 'varlibdockercontainers',
+                    hostPath: {
+                      path: '/var/lib/docker/containers',
                     },
-                  ],
-                },
-              ],
+                  },
+                ],
+                containers: [
+                  {
+                    name: 'filebeat',
+                    volumeMounts: [
+                      {
+                        name: 'varlogcontainers',
+                        mountPath: '/var/log/containers',
+                      },
+                      {
+                        name: 'varlogpods',
+                        mountPath: '/var/log/pods',
+                      },
+                      {
+                        name: 'varlibdockercontainers',
+                        mountPath: '/var/lib/docker/containers',
+                      },
+                    ],
+                  },
+                ],
+              },
             },
           },
         },
       },
-    });
+      pulumi.mergeOptions(childOpts, { dependsOn: es }),
+    );
   }
 }
