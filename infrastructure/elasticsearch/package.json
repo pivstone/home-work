@@ -1,0 +1,14 @@
+{
+  "name": "elasticsearch",
+  "main": "index.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "password": "kubectl get secret default-895e5c71-es-elastic-user -o=jsonpath='{.data.elastic}' | base64 --decode;"
+  },
+  "devDependencies": {},
+  "dependencies": {
+    "@pulumi/kubernetes": "^4.0.0",
+    "@pulumi/pulumi": "^3.113.0",
+    "@pulumi/crds": "workspace:*"
+  }
+}

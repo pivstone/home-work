@@ -1,0 +1,10 @@
+allowBuilds:
+  '@pulumi/kubernetes': false
+  '@pulumi/kubernetes-ingress-nginx': false
+  '@swc/core': false
+  nx: false
+  protobufjs: false
+packages:
+  - packages/*
+  - infrastructure/*
+minimumReleaseAge: 1440

@@ -1,0 +1,16 @@
+{
+  "name": "prometheus",
+  "main": "index.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "password": "kubectl get secret -n monitoring  prometheus-stack-grafana   -o=jsonpath='{.data.admin-password}' | base64 --decode;"
+  },
+  "devDependencies": {
+    "@types/node": "^18",
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "@pulumi/kubernetes": "^4.0.0",
+    "@pulumi/pulumi": "^3.113.0"
+  }
+}
