@@ -3,4 +3,4 @@ import { EckOperator } from './operator';
 import { ELK } from './elk';
 
 const operator = new EckOperator('eck-operator');
-new ELK('default', { dependsOn: operator });
+new ELK('default', { dependsOn: operator.chart });

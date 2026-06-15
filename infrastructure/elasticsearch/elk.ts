@@ -8,20 +8,26 @@ export class ELK extends pulumi.ComponentResource {
   constructor(name: string, opts?: pulumi.ComponentResourceOptions) {
     super('elk-instance', name, opts);
 
-    const es = new elasticsearch.Elasticsearch(name, {
-      spec: {
-        version: '9.4.2',
-        nodeSets: [
-          {
-            count: 1,
-            name,
-            config: {
-              'node.store.allow_mmap': false,
+    const childOpts = pulumi.mergeOptions(opts, { parent: this });
+
+    const es = new elasticsearch.Elasticsearch(
+      name,
+      {
+        spec: {
+          version: '9.4.2',
+          nodeSets: [
+            {
+              count: 1,
+              name,
+              config: {
+                'node.store.allow_mmap': false,
+              },
             },
-          },
-        ],
+          ],
+        },
       },
-    });
+      childOpts,
+    );
 
     const kb = new kibana.Kibana(
       name,
@@ -44,7 +50,7 @@ export class ELK extends pulumi.ComponentResource {
           },
         },
       },
-      { dependsOn: es },
+      pulumi.mergeOptions(childOpts, { dependsOn: es }),
     );
 
     new k8s.networking.v1.Ingress(
