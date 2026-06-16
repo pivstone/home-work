@@ -56,7 +56,9 @@ const svc = new k8s.core.v1.Service(
     metadata: { labels: deployment.spec.template.metadata.labels },
     spec: {
       type: 'NodePort',
-      ports: [{ port: 30080, targetPort: PORT, protocol: 'TCP' }],
+      ports: [
+        { port: PORT, targetPort: PORT, nodePort: 30080, protocol: 'TCP' },
+      ],
       selector: appLabels,
     },
   },

@@ -1,108 +1,238 @@
-# New Nx Repository
+# Kubernetes Observability Stack
 
-<a alt="Nx logo" href="https://nx.dev" target="_blank" rel="noreferrer"><img src="https://raw.githubusercontent.com/nrwl/nx/master/images/nx-logo.png" width="45"></a>
+Nx and PNPM monorepo for deploying a local Kubernetes observability stack with Pulumi.
 
-✨ Your new, shiny [Nx workspace](https://nx.dev) is ready ✨.
+The workspace provisions:
 
-[Learn more about this workspace setup and its capabilities](https://nx.dev/nx-api/js?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) or run `npx nx graph` to visually explore what was created. Now, let's get you up to speed!
+- an NGINX ingress controller
+- a demo NGINX application that returns the server IP
+- Elastic Cloud on Kubernetes resources for Elasticsearch, Kibana, and Beats
+- kube-prometheus-stack for Prometheus and Grafana
+- generated Pulumi CRD bindings used by the Elastic stack
 
-## Try the full Nx platform
+## Assignment Coverage
 
-🚀 If you haven't connected to Nx Cloud yet, [complete your setup here](https://cloud.nx.app/setup/connect-workspace/guide). Get faster builds with remote caching, distributed task execution, and self-healing CI. [See how your workspace can benefit](#nx-cloud).
+| Requirement | Implementation |
+| --- | --- |
+| Local Minikube cluster | Documented Minikube startup command with the flags required by the monitoring stack |
+| NGINX app with 2 replicas | `packages/demo` Pulumi deployment with `replicas: 2` |
+| NGINX exposed on NodePort 30080 | `packages/demo` Service of type `NodePort` with `nodePort: 30080` |
+| GET `/` returns pod IP | NGINX template reads `POD_IP` from the Kubernetes downward API and returns it as plain text |
+| `server_ip` response header | NGINX template adds the `server_ip` header with the same `POD_IP` value |
+| Elasticsearch and Kibana | `infrastructure/elasticsearch` deploys ECK, Elasticsearch, and Kibana connected by `elasticsearchRef` |
+| Prometheus metrics | `infrastructure/prometheus` deploys kube-prometheus-stack |
+| Centralized pod logs | ECK Beat/Filebeat DaemonSet collects `/var/log/containers/*.log` into Elasticsearch |
 
-## Generate a library
+The assignment asks for Terraform modules. This repository uses Pulumi with TypeScript instead, as described in [Design Decisions](#design-decisions).
 
-```sh
-npx nx g @nx/js:lib packages/pkg1 --publishable --importPath=@my-org/pkg1
-```
+## Prerequisites
 
-## Run tasks
+- Node.js 22
+- PNPM 11.5.3
+- Minikube
+- Pulumi CLI
+- `kubectl`
 
-To build the library use:
-
-```sh
-npx nx build pkg1
-```
-
-To run any task with Nx use:
-
-```sh
-npx nx <target> <project-name>
-```
-
-These targets are either [inferred automatically](https://nx.dev/concepts/inferred-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) or defined in the `project.json` or `package.json` files.
-
-[More about running tasks in the docs &raquo;](https://nx.dev/features/run-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-
-## Versioning and releasing
-
-To version and release the library use
-
-```
-npx nx release
-```
-
-Pass `--dry-run` to see what would happen without actually releasing the library.
-
-[Learn more about Nx release &raquo;](https://nx.dev/features/manage-releases?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-
-## Keep TypeScript project references up to date
-
-Nx automatically updates TypeScript [project references](https://www.typescriptlang.org/docs/handbook/project-references.html) in `tsconfig.json` files to ensure they remain accurate based on your project dependencies (`import` or `require` statements). This sync is automatically done when running tasks such as `build` or `typecheck`, which require updated references to function correctly.
-
-To manually trigger the process to sync the project graph dependencies information to the TypeScript project references, run the following command:
+Install the main local tools with Homebrew:
 
 ```sh
-npx nx sync
+brew install minikube
+brew install pulumi/tap/pulumi
 ```
 
-You can enforce that the TypeScript project references are always in the correct state when running in CI by adding a step to your CI job configuration that runs the following command:
+If this is your first time using Pulumi locally, use local state storage:
 
 ```sh
-npx nx sync:check
+pulumi login --local
 ```
 
-[Learn more about nx sync](https://nx.dev/reference/nx-commands#sync)
+## Start Minikube
 
-## Nx Cloud
-
-Nx Cloud ensures a [fast and scalable CI](https://nx.dev/ci/intro/why-nx-cloud?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) pipeline. It includes features such as:
-
-- [Remote caching](https://nx.dev/ci/features/remote-cache?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Task distribution across multiple machines](https://nx.dev/ci/features/distribute-task-execution?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Automated e2e test splitting](https://nx.dev/ci/features/split-e2e-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Task flakiness detection and rerunning](https://nx.dev/ci/features/flaky-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-
-### Set up CI (non-Github Actions CI)
-
-**Note:** This is only required if your CI provider is not GitHub Actions.
-
-Use the following command to configure a CI workflow for your workspace:
+Start Minikube with containerd and webhook auth enabled. The monitoring stack expects the scheduler and controller manager metrics endpoints to be reachable from the cluster.
 
 ```sh
-npx nx g ci-workflow
+minikube start \
+  --container-runtime=containerd \
+  --memory=6g \
+  --bootstrapper=kubeadm \
+  --extra-config=kubelet.authentication-token-webhook=true \
+  --extra-config=kubelet.authorization-mode=Webhook \
+  --extra-config=scheduler.bind-address=0.0.0.0 \
+  --extra-config=controller-manager.bind-address=0.0.0.0
 ```
 
-[Learn more about Nx on CI](https://nx.dev/ci/intro/ci-with-nx#ready-get-started-with-your-provider?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+## Install and Build
 
-## Install Nx Console
+Install dependencies from the repository root:
 
-Nx Console is an editor extension that enriches your developer experience. It lets you run tasks, generate code, and improves code autocompletion in your IDE. It is available for VSCode and IntelliJ.
+```sh
+pnpm install
+```
 
-[Install Nx Console &raquo;](https://nx.dev/getting-started/editor-setup?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+Build the generated CRD package:
 
-## Useful links
+```sh
+pnpm nx run-many -t build
+```
 
-Learn more:
+Typecheck every Nx project:
 
-- [Learn more about this workspace setup](https://nx.dev/nx-api/js?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Learn about Nx on CI](https://nx.dev/ci/intro/ci-with-nx?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Releasing Packages with Nx release](https://nx.dev/features/manage-releases?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [What are Nx plugins?](https://nx.dev/concepts/nx-plugins?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+```sh
+pnpm nx run-many -t typecheck
+```
 
-And join the Nx community:
+PNPM is configured with `minimumReleaseAge` to avoid installing dependencies released in the last three days.
 
-- [Discord](https://go.nx.dev/community)
-- [Follow us on X](https://twitter.com/nxdevtools) or [LinkedIn](https://www.linkedin.com/company/nrwl)
-- [Our Youtube channel](https://www.youtube.com/@nxdevtools)
-- [Our blog](https://nx.dev/blog?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+## Deploy
+
+Deploy the stacks in this order. Paths below assume you start from the repository root before each step.
+
+### 1. NGINX Ingress Controller
+
+```sh
+cd infrastructure/nginx
+pulumi up
+```
+
+Confirm the preview when Pulumi prompts you. This stack uses the passphrase `Password`.
+
+### 2. Demo Application
+
+```sh
+cd packages/demo
+pulumi up
+```
+
+After deployment, expose the service through Minikube:
+
+```sh
+curl "http://$(minikube ip):30080/" -i
+```
+
+The response should include a `server_ip` header and the same pod IP in the response body.
+
+```text
+HTTP/1.1 200 OK
+server_ip: 10.244.0.12
+
+10.244.0.12
+```
+
+### 3. Elasticsearch and Kibana
+
+```sh
+cd infrastructure/elasticsearch
+pulumi up
+```
+
+This stack depends on the NGINX ingress controller. If Pulumi asks for a passphrase and you have not configured one, press Enter.
+
+Start a Minikube tunnel before opening Kibana:
+
+```sh
+minikube tunnel
+```
+
+Then open Kibana:
+
+```text
+http://127.0.0.1/kibana
+```
+
+The Kibana username is `elastic`. Get the generated password from the Kubernetes secret:
+
+```sh
+kubectl get secret default-895e5c71-es-elastic-user \
+  -o=jsonpath='{.data.elastic}' | base64 --decode
+```
+
+In Kibana, search for `Logs` to inspect container logs collected from the cluster.
+
+### 4. Prometheus and Grafana
+
+```sh
+cd infrastructure/prometheus
+pulumi up
+```
+
+If Pulumi asks for a passphrase and you have not configured one, press Enter.
+
+The stack installs kube-prometheus-stack, including Prometheus Operator, Grafana, default dashboards, alerting rules, and cluster metric collection.
+
+Expose Grafana with Minikube:
+
+```sh
+minikube service -n monitoring prometheus-stack-grafana --url
+```
+
+The Grafana username is `admin`. Get the generated password from the Kubernetes secret:
+
+```sh
+kubectl get secret -n monitoring prometheus-stack-grafana \
+  -o=jsonpath='{.data.admin-password}' | base64 --decode
+```
+
+## Workspace Layout
+
+```text
+infrastructure/
+  elasticsearch/   Pulumi stack for ECK, Elasticsearch, Kibana, and Beats
+  nginx/           Pulumi stack for the NGINX ingress controller
+  prometheus/      Pulumi stack for kube-prometheus-stack and Grafana
+packages/
+  crds/            Exported Elastic Kubernetes CRD YAML files
+  demo/            Demo NGINX application
+  generated/       Generated Pulumi package for the CRDs
+```
+
+Nx projects:
+
+- `nginx`
+- `demo`
+- `elasticsearch`
+- `prometheus`
+- `@pulumi/crds`
+
+## Useful Commands
+
+Run available builds:
+
+```sh
+pnpm nx run-many -t build
+```
+
+Run typechecks:
+
+```sh
+pnpm nx run-many -t typecheck
+```
+
+Show Nx projects:
+
+```sh
+pnpm nx show projects
+```
+
+Get the Elasticsearch password:
+
+```sh
+pnpm --dir infrastructure/elasticsearch run password
+```
+
+Get the Grafana password:
+
+```sh
+pnpm --dir infrastructure/prometheus run password
+```
+
+## Notes
+
+- The first version used CDK8s. This version uses Pulumi because it provides a more complete infrastructure-as-code workflow without leaning on the AWS CDK ecosystem.
+- Pulumi supports unit testing, but this repository keeps only the generated tests because testing the Pulumi programs is not the focus of the homework.
+- The monorepo was initialized with Nx. Agent configuration and GitHub workflow files are included as part of that setup.
+- AI tools used: Duck.AI for search and Codex for local code review and README polish.
+
+## Design Decisions
+
+- Pulumi was chosen over Terraform because the TypeScript programming model fits backend-oriented development better than a dedicated DSL for this project.
+- Kubernetes operators are preferred for complex applications such as Elasticsearch and Prometheus because they package domain-specific lifecycle management instead of requiring every Kubernetes resource to be maintained manually.
