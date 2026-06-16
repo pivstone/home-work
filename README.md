@@ -230,7 +230,11 @@ pnpm --dir infrastructure/prometheus run password
 - The first version used CDK8s. This version uses Pulumi because it provides a more complete infrastructure-as-code workflow without leaning on the AWS CDK ecosystem.
 - Pulumi supports unit testing, but this repository keeps only the generated tests because testing the Pulumi programs is not the focus of the homework.
 - The monorepo was initialized with Nx. Agent configuration and GitHub workflow files are included as part of that setup.
-- AI tools used: Duck.AI for search and Codex for local code review and README polish.
+
+## AI Usage
+
+- Duck.AI was used for search.
+- Codex was used for local code review and README polish.
 
 ## Design Decisions
 
